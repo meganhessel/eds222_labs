@@ -68,7 +68,11 @@ penguins %>%
 ```{r}
 #| label: q1
 
-
+penguins %>% 
+  count(species, island) %>% 
+  pivot_wider(names_from = island, 
+              values_from = n, 
+              values_fill = 0)
 
 ```
 
@@ -97,7 +101,18 @@ prop.table(species_island_table, margin = 2)
 ```{r}
 #| label: q2
 
+# Finding row proportions 
+penguins %>% 
+  count(species, island) %>% 
+  group_by(species) %>%   # per row 
+  mutate(prop = n/sum(n))
 
+
+# Finding column proportions
+penguins %>% 
+  count(species, island) %>% 
+  group_by(island) %>%   # per column 
+  mutate(prop = n/sum(n))
 
 ```
 
@@ -118,7 +133,8 @@ ggplot(penguins, aes(species)) +
 ```{r}
 #| label: q3
 
-
+ggplot(penguins, aes(species, fill = island)) +
+  geom_bar()
 
 ```
 
@@ -151,6 +167,10 @@ penguins %>%
 
 **Q5 What's the difference between a histogram and a bar plot?**
 
+Histogram - 1 continuous variable, showing its frequency on the y! Binning data
+
+Bar plot - Categorical data
+
 ### Mean and standard deviation
 
 Recall that parameters and statistics are numerical summaries of populations and samples, respectively. Mean and standard deviation are useful summaries, but be careful as they can hide important differences.
@@ -163,8 +183,15 @@ As a rule of thumb, about 68% of a sample's data will fall within one standard d
 
 ```{r}
 #| label: q6
+body_mass <- penguins$body_mass_g[!is.na(penguins$body_mass_g)]
+sd_mass <- sd(penguins$body_mass_g, na.rm = TRUE)
+mean_mass <- mean(penguins$body_mass_g, na.rm = TRUE)
+
+#how many penguins have a body mass between 1 and 2 stand devisition from the mean 
+win1sd <- mean(body_mass >= mean_mass - sd_mass & body_mass <= mean_mass + sd_mass)
 
 
+win2sd <- mean(body_mass >= mean_mass - 2*sd_mass & body_mass <= mean_mass + 2*sd_mass)
 
 ```
 
@@ -175,7 +202,8 @@ Scatter plots depict relationships between variables.
 ```{r}
 penguins %>% 
   ggplot(aes(bill_length_mm, bill_depth_mm)) +
-  geom_point() 
+  geom_point()+ 
+  geom_smooth(method = line)
 
 ```
 
@@ -187,10 +215,14 @@ This is an example of *Simpson's paradox*, which is when between-group correlati
 
 ```{r}
 #| label: q7
-
-
+penguins %>% 
+  ggplot(aes(bill_length_mm, bill_depth_mm, color = species)) +
+  geom_point() + 
+  geom_smooth()
 
 ```
+
+\
 
 ## Where to find data
 
@@ -216,3 +248,40 @@ Find a dataset containing multiple categorical and continuous variables. You'll 
 ## Finished?
 
 If you wrap up before lab is over, head over to the final project page on the course website and look at the section [Model and response options](https://eds-222-stats-f25.github.io/final-project.html#model-and-response-options). Your final project will require you to choose a question and data to investigate using a model *we won't teach you in class*. The defining characteristic for these models are the **response variable** they can handle. Start thinking up a question and looking for data where the response variable has characteristics listed in the [Model and response options](https://eds-222-stats-f25.github.io/final-project.html#model-and-response-options) table. Keep in mind that transformations and merging datasets are both options, so even if the raw data you find don't match one of the eligible models, you may be able to derive something that does. Happy hunting!
+
+![]()
+
+```{r}
+# Load data
+temp_df <- read_csv(here::here("week1", "global_temp.csv"))
+
+diet_df <- read_csv(here::here("week1", "dietary-choices-uk.csv"))
+```
+
+```{r}
+# Filter Data
+
+sub_diet <- diet_df[, c(1, 9)]
+
+mean_diet <- sub_diet %>% 
+  group_by(Entity) %>% 
+  summarise(mean_veg = mean(`Percentage of vegetarians`, na.rm= TRUE))
+
+class(mean_diet)
+```
+
+```{r}
+# Make a graph 
+library(ggplot2)
+
+ggplot(mean_diet, 
+       aes(x=Entity, 
+           y=mean_veg)) + 
+  geom_col(fill = '#488f30')+ 
+  labs(title = 'Avg Perc of Vegetarians in Dif Age Brackets', 
+       x = 'Age Brackets', 
+       y = 'Average Percentages of Vegetarians')
+
+ggsave(here::here('week1', 'VegGraph.png'), height = 7, width = 7)
+
+```
