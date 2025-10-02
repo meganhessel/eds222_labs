@@ -9,7 +9,7 @@ foo <- tibble(
 mu <- 45 
 sigma <- 16 
 
-# 3. calucauled desnity 
+# 3. calucauled density 
 foo <- mutate(food, density = dnorm(x, mean = mu, sd = sigma))
 
 # 4. plot it 

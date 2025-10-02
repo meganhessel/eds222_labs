@@ -58,12 +58,28 @@ table(penguins$species, penguins$island)
 The tidyverse `count()` function will give you a contingency table in long format.
 
 ```{r}
-penguins %>% 
+table <- penguins %>% 
   count(species, island)
 
 ```
 
 **Q1** How would you pivot it to look like the contingency table above?
+
+```{r}
+penguins %>% 
+  count(species, island) %>% 
+  pivot_wider(names_from = species, 
+              values_from = n, 
+              values_fill = 0)
+
+table %>% 
+    pivot_wider(names_from = species, 
+              values_from = n, 
+              values_fill = 0)
+
+```
+
+![]()
 
 ```{r}
 #| label: q1
@@ -99,22 +115,31 @@ prop.table(species_island_table, margin = 2)
 **Q2** How would you use `count()`, `group_by()`, `mutate()`, and pivoting to create row- and column-wise proportion tables?
 
 ```{r}
-#| label: q2
-
-# Finding row proportions 
 penguins %>% 
-  count(species, island) %>% 
-  group_by(species) %>%   # per row 
-  mutate(prop = n/sum(n))
+  count(species, island)
+```
 
+```{r}
+# *** I DONT UNDERSTAND THE DIFFERENCE BETWEEN THESE *** 
 
 # Finding column proportions
-penguins %>% 
+col_prop <- penguins %>% 
   count(species, island) %>% 
   group_by(island) %>%   # per column 
   mutate(prop = n/sum(n))
 
+print(col_prop)
+
+# Finding row proportions 
+row_prop <- penguins %>% 
+  count(species, island) %>% 
+  group_by(species) %>%   # per row 
+  mutate(prop = n/sum(n))
+
+print(row_prop)
 ```
+
+![]()
 
 ### Bar plots
 
@@ -267,6 +292,9 @@ mean_diet <- sub_diet %>%
   group_by(Entity) %>% 
   summarise(mean_veg = mean(`Percentage of vegetarians`, na.rm= TRUE))
 
+mean_diet <- mean_diet %>% 
+  filter(!Entity == "All adults")
+
 class(mean_diet)
 ```
 
@@ -278,10 +306,82 @@ ggplot(mean_diet,
        aes(x=Entity, 
            y=mean_veg)) + 
   geom_col(fill = '#488f30')+ 
-  labs(title = 'Avg Perc of Vegetarians in Dif Age Brackets', 
+  labs(title = 'Avg Percentages of Vegetarians Across Age Groups', 
        x = 'Age Brackets', 
        y = 'Average Percentages of Vegetarians')
 
-ggsave(here::here('week1', 'VegGraph.png'), height = 7, width = 7)
+ggsave(here::here('week1', 'VegGraph.png'), height = 8, width = 8)
+
+```
+
+c('Percentage of flexitarians', 'Percentage of people with other diets', 'Percentage of vegans', 'Percentage of meat eaters','Percentage of pescetarians', 'Percentage of vegetarians')
+
+```{r}
+# makeing a new column with just the year 
+# averaging info from the same year 
+# deleting unnessacry columns 
+diet_df_year <- diet_df %>% 
+  mutate(year = year(diet_df$Day)) %>% 
+  group_by(year) %>% 
+  summarise(across(everything(), mean, na.rm = TRUE)) %>% 
+  select(!c(Entity, Code, Day))
+
+print(diet_df_year)
+
+
+# transposing dataframe 
+# changing column nameto the years
+diet_t <- t(diet_df_year)
+colnames(diet_t) <- c('2019', '2020', '2021', '2022', '2023','2024', '2025') 
+                            
+diet_t <- as.data.frame(diet_t[-c(1), ]) #deleting the row of years
+print(diet_t)
+
+
+
+# attempting to pivot and rotate the df 
+diet_long <- pivot_longer(diet_df_year, 
+             cols = starts_with("Percentage"), 
+             names_to = 'Diets', 
+             values_to = 'Percentages'
+             )
+
+pivot_wider(diet_df_year,
+            names_from = 'year', 
+            values_from = starts_with("Percentage"))
+            )
+
+diet_t %>%
+  pivot_longer(
+    cols = everything(), # Selects all columns to pivot
+    names_to = "Variable", # New column to store original column names
+    values_to = "Value" # New column to store the values from the pivoted columns
+  ) 
+  
+
+# graphing 
+ggplot(diet_df_year, 
+       aes(x = year, fill = )) + 
+  geom_bar()
+
+ggplot(diet_t, 
+       aes(x = colnames(), fill = )) + 
+  geom_bar()
+
+ggplot(diet_long,
+       aes(x = 'year', 
+           y = 'Percentages', 
+           fill = 'Diet')) + 
+  geom_col()
+
+ggplot(data, aes(fill=condition, y=value, x=specie)) + 
+    geom_bar(position="stack", stat="identity")
+
+ggplot(diet_t, 
+       x = )
+
+# geom_bar(position = "fill")
+
+diet_long
 
 ```
