@@ -281,19 +281,28 @@ The common murre is a seabird that breeds in large numbers off the coast of Cali
 Read the data from the rreas.csv file and create a scatter plot relating fish abundance indices to common murre diet.
 
 ```{r}
+library(ggplot2)
 
-rreas_murres <- read_csv("data/rreas.csv")
+rreas_murres <- read_csv("week2/rreas.csv")
 
+colnames(rreas_murres)
 ```
 
 ```{r}
 #| label: q6
+# scatter plot relating fish abundance indices to common murre diet.
 
+ggplot(rreas_murres, 
+       aes(x = rreas_rockfish_index, 
+           y = comu_rockfish_diet)) + 
+  geom_point()
 
 
 ```
 
 **Q6: Which variables did you choose for the x- and y-axis? What does this mean for the purpose of your model?**
+
+-   We are looking to the idea of predicting the diet via the rockfish adundance index
 
 ### Fit the model
 
@@ -301,47 +310,88 @@ Fit a model that predicts the RREAS rockfish abundance index from the fraction o
 
 ```{r}
 #| eval: false
+# Creating a model 
+rf_mod <- lm(comu_rockfish_diet ~ rreas_rockfish_index, data = rreas_murres)
 
-
+# Finding Summary 
+rf_sum <- summary(rf_mod)
 
 ```
 
-### Interpret the model
+###  Interpret the model
 
 Find the $R^2$ value for your model.
+
+**Q7: What does the R2 value tell you about the utility of your model for filling in the survey gap?**
 
 ```{r}
 #| label: q7
 
+# Finding R Squared 
+rf_R_sq <- rf_sum$r.squared # 0.698 
 
+# Explaing the R using a print statement 
+print(paste0("The rockfish index explains ", round(rf_R_sq * 100, 3),"% of the varation in the diet"))
+
+print(paste0("Having the rockfish index, reduces the error in the prediction by ", round(rf_R_sq * 100, 3),"%"))
 
 ```
 
-**Q7: What does the R2 value tell you about the utility of your model for filling in the survey gap?**
-
-Extract the estimated coefficients ($\hat \beta_0, \hat \beta_1$) and standard deviation ($\hat \sigma$) from the model.
+Extract the estimated coefficients ($\hat \beta_0, \hat \beta_1$) and standard deviation ($\hat \sigma$) from the model.\
+**Q8: In plain language, what do the coefficients and standard deviation of the model represent?**
 
 ```{r}
 #| label: q8
 
+# Finding Sigma and coeffients 
+rf_sigma <- rf_sum$sigma # 0.162 
 
+rf_B0 <- coef(rf_mod)[1] # 0.209 
+
+rf_B1 <- coef(rf_mod)[2] # 0.114
+
+# print statement explaing sigma 
+print(paste("simga of", round(rf_sigma, 3), "represents the standard deivation  AKA the SPREAD of the data. This data does not have a large spread."))
+
+# print statement explaining B0 
+print(paste("B0 of", round(rf_B0, 3), "is the interecpt. When the index is 0, the diet is", round(rf_B0, 3)))
+
+# print statement explaining B1 
+print(paste("B1 of", round(rf_B1, 3), "is the slope When the index increased by 1 unit, the diet increased by", round(rf_B1, 3)))
 
 ```
-
-**Q8: In plain language, what do the coefficients and standard deviation of the model represent?**
 
 Say it's 2020 and the RREAS has largely been canceled. You ask Point Blue to share their common murre diet data with you and they say it was 32.8% juvenile rockfish. Estimate the predicted value of the juvenile rockfish abundance index.
 
-```{r}
-#| label: q9
-
-
-
-```
-
 **Q9: What did you predict the juvenile rockfish abundance index was in 2020?**
 
+```{r}
+#| label: q9
+#| 
+#y = b0 + b1 * x 
+# x = (y - b0) / b1 
+
+# The given y 
+y <-  0.328 
+
+# solving for x 
+x <- (y - rf_B0) / rf_B1
+
+# print statement explaining 
+print(paste0("If there was a ", y * 100,  "% juvelile rockfish, there rockfish index is estimated to be ", round(x, 3)))
+```
+
 **Q10: Your prediction is the *most likely* outcome, but the actual index won't take that value exactly. How would you estimate an interval that you could confidently say probably contains the actual index?**
+
+```{r}
+
+# 95% of the data is between 2 standard deviations from the mean 
+a <- y - (2* rf_sigma)
+b <- y + (2* rf_sigma)
+
+print(paste("There is a 95% chance the value will be between", round(a, 1), round(b, 2)))
+
+```
 
 ## Recap
 
