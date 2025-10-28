@@ -91,7 +91,25 @@ HA: Popsicle stick will have *more* successful outcomes than garden staple
 **Q3: How would you calculate the test statistic *for the sample*?**
 
 ```{r}
-#| label: q3
+# What Max did 
+
+# Finding the proportions per treatment 
+# What is proportion of successes for each treatment? 
+
+restoration_sum <- restoration %>% 
+  group_by(treatment) %>%  # Grouping by treatment 
+  summarise(prop_success = sum(success)/n()) # Finding proportion of success 
+
+# Difference of propertion 
+diff_prop <- restoration_sum$prop_success[2] - restoration_sum$prop_success[1] 
+
+
+```
+
+```{r}
+# What we tried in our groups 
+
+
 
 gs_prob <- sum(restoration$success == 1)/nrow(restoration$treatment == "Garden staple")
 
@@ -101,24 +119,8 @@ diff <- ps_prob - gs_prob
 
 diff
 
-```
 
-```{r}
-# Finding the proportions per treatment 
-# What is proportion of successes for each treatment? 
-
-restoration_sum <- restoration %>% 
-  group_by(treatment) %>% 
-  summarise(prop_success = sum(success)/n())
-
-
-restoration_sum$prop_success[2] - restoration_sum$prop_success[1]
-
-
-
-
-------------------
-
+  
 # SIKE... NOT what we want to see 
 sum_df <- restoration %>% 
   group_by(treatment, success_fct) %>% 
@@ -161,10 +163,11 @@ This is the key part of a permutation test! Remember, our goal is to estimate th
 # Assuming no difference... ploting the Null 
 
 # Shuffled the dataframes - to remove association between treatments 
+# Mixes up the treatments to break assocation of success between treatments 
 one_permutation <- restoration %>% 
-  mutate(treatment = sample(treatment, 
+  mutate(treatment = sample(treatment, # Random Sample from treatments 
                       size = length(treatment),
-                      replace = FALSE))
+                      replace = FALSE)) 
 
 # Finding prob of success for treatments with no associationship  
 permutation_props <- one_permutation %>% 
@@ -186,6 +189,7 @@ That gives us the value of the test statistic for just one permutation. To get a
 #| label: q6
 #| eval: false
 
+# Putting all code above in a funtion called permute 
 permute <- function(i) {
   # Shuffled the dataframes - to remove association between treatments
   one_permutation <- restoration %>%
@@ -203,6 +207,7 @@ permute <- function(i) {
   
 }
 
+# Creating a distribution of diff of prop from null sample 
 null_distribution <- map_dbl(1:1000, permute) # permute = function 
 # 1000 = sample size 
 
@@ -214,8 +219,14 @@ null_distribution <- map_dbl(1:1000, permute) # permute = function
 #| label: q7
 
 ggplot() + 
-  geom_histogram(aes(null_distribution)) + 
-  geom_vline(xintercept = dif_proportion)
+  geom_histogram(aes(null_distribution)) + # Null distribution
+  geom_vline(xintercept = diff_prop) # Observed Test Stat in first part 
+
+
+ggplot(tibble(null_distribution), aes(null_distribution)) + 
+  geom_histogram(binwidth = 0.04) + 
+  geom_vline(xintercept = diff_prop, 
+             color = "red")
 
 ```
 
@@ -229,8 +240,9 @@ The p-value is *the probability of a test statistic [at least]{.underline} as ex
 #| label: q8
 #| eval: false
 
-p_val <- sum(null_distribution >= dif_proportion) / 1000
-
+# Summing all values in null distribution that are larger than the dif of proportion 
+p_val <- sum(null_distribution >= diff_prop) / length(null_distribution)
+# which diff of proportion to ask 
 p_val
 
 ```
@@ -270,12 +282,65 @@ This is the key part of bootstrapping! Remember, our goal is to estimate the var
 #| label: q12
 #| eval: false
 
-one_bootstrap <- ??? %>% 
-  ??? %>% 
-  mutate(??? = sample(???,
-                      size = length(???),
-                      replace = ???)) %>% 
+
+# WHAT MAX DID 
+one_bootstrap <- restoration %>% 
+  group_by(treatment) %>% 
+  mutate(success = sample(success,
+                          size = length(success),
+                          replace = TRUE)) %>% 
   ungroup()
+
+
+bootstrap <- function(i) {
+  one_bootstrap <- restoration %>% 
+    group_by(treatment) %>% 
+    mutate(success = sample(success,
+                            size = length(success),
+                            replace = TRUE)) %>% 
+    ungroup() %>% 
+    mutate(trial = i)
+}
+
+bootstrap_samples <- map(1:1000, bootstrap) %>% 
+  list_rbind()
+```
+
+```{r}
+#| label: q12
+#| eval: false
+
+# WHAT I DID 
+
+# bar graph
+ggplot(one_bootstrap, aes(treatment, fill = success_fct)) +
+  geom_bar() +
+  scale_fill_manual(values = c("firebrick", "cornflowerblue")) +
+  labs(x = "Restoration method",
+       y = "Sites",
+       fill = "Outcome") +
+  theme(legend.position = "inside",
+        legend.position.inside = c(1, 1),
+        legend.justification = c(1, 1))
+
+
+
+# Random Sample
+one_bootstrap <- restoration %>% 
+  group_by(treatment) %>% 
+  mutate(success = sample(success,
+                      size = length(success),
+                      replace = TRUE)) %>% 
+  ungroup() 
+
+# Finding Proportion 
+bootstrap_prop <- one_permutation %>%
+  group_by(treatment) %>% 
+  summarise(prop_success = sum(success)/n()) 
+ 
+# Difference of proportion 
+bootstrap_diff_prop <- bootstrap_prop$prop_success[2] - bootstrap_prop$prop_success[1]
+
 
 ```
 
@@ -286,17 +351,80 @@ one_bootstrap <- ??? %>%
 :::
 
 ```{r}
-#| label: q13
-#| eval: false
-
+# WHAT MAX DID 
 bootstrap <- function(i) {
-  ??? %>% 
+  one_bootstrap <- restoration %>% 
+    group_by(treatment) %>% 
+    mutate(success = sample(success,
+                            size = length(success),
+                            replace = TRUE)) %>% 
+    ungroup() %>% 
     mutate(trial = i)
 }
 
-bootstrap_samples <- map(???, ???) %>% 
-  ???
+bootstrap_samples <- map(1:1000, bootstrap) %>% 
+  list_rbind()
 
+```
+
+```{r}
+#| label: q13
+#| eval: false
+
+
+# WHAT I DID 
+# IDK if I am doing this right 
+
+bootstrap_fun <- function(i) {
+  # Shuffling Samples to break associationship  
+  one_bootstrap <- restoration %>%
+    group_by(treatment) %>%
+    mutate(success = sample(success, 
+                            size = length(success), 
+                            replace = TRUE)) %>%
+    ungroup()
+  
+  # Finding Proportion
+  bootstrap_prop <- one_permutation %>%
+    group_by(treatment) %>%
+    summarise(prop_success = sum(success) / n())
+  
+  # Difference of proportion
+  bootstrap_diff_prop <- bootstrap_prop$prop_success[2] - bootstrap_prop$prop_success[1]
+  
+}
+
+# Drawing null distibutions  
+bootstrap_null_dist <- map(1:1000, bootstrap_fun) 
+#%>% 
+#???
+
+ggplot() + 
+  geom_histogram(aes(bootstrap_null_dist)) + 
+  geom_vline(xintercept = bootstrap_diff_prop)
+
+
+
+
+
+# What I had written in class ?? 
+
+bootstrap <- function(i) {
+  restoration %>% 
+  group_by(treatment) %>% 
+  mutate(success = sample(success,
+                      size = length(success),
+                      replace = TRUE)) %>% 
+  ungroup() %>% 
+  mutate(trial = i)
+}
+
+bootstrap_null_dist <- map(1:1000, bootstrap) 
+#%>% 
+#???
+
+ggplot() + 
+  geom_histogram(aes(bootstrap_null_dist))
 ```
 
 ### Estimate the bootstrap distribution of the test statistic
@@ -306,7 +434,11 @@ bootstrap_samples <- map(???, ???) %>%
 ```{r}
 #| label: q14
 
-
+boot_diff_prop <- bootstrap_samples %>% 
+  group_by(trial, treatment) %>% 
+  summarize(prop_success = mean(success),
+            .groups = "drop_last") %>% 
+  summarize(diff_prop = prop_success[2] - prop_success[1])
 
 ```
 
@@ -315,7 +447,8 @@ bootstrap_samples <- map(???, ???) %>%
 ```{r}
 #| label: q15
 
-
+ggplot(boot_diff_prop, aes(diff_prop)) +
+  geom_histogram()
 
 ```
 
@@ -333,7 +466,7 @@ The `quantile()` function finds quantiles. It's vectorized over the parameter `p
 #| label: q16
 #| eval: false
 
-restoration_ci <- ???
+restoration_ci <- quantile(boot_diff_prop$diff_prop, c(0.025, 0.975))
 restoration_ci
 
 ```
@@ -343,7 +476,15 @@ restoration_ci
 ```{r}
 #| label: q17
 
-
+ggplot(boot_diff_prop, aes(diff_prop)) +
+  geom_histogram() +
+  geom_vline(xintercept = diff_props, 
+             color = "firebrick",
+             linewidth = 1.5) +
+  geom_vline(xintercept = restoration_ci, 
+             color = "firebrick",
+             linetype = "dotted",
+             linewidth = 1.5)
 
 ```
 
@@ -353,6 +494,12 @@ The visualization you created for Q7 shows the null distribution of the test sta
 
 **Q18: What did you do to make the null distribution center on zero? Specifically, what code?**
 
+*Broke the association between treatment and outcome. Sampled treatment without replacement.*
+
 **Q19: What did you do to make the bootstrap distribution center on the observed test statistic? Specifically, what code?**
 
+*Retained the association between treatment and outcome. Grouped by treatment, then sampled with replacement.*
+
 **Q20: What would happen to your bootstrap distribution if you sampled without replacement?**
+
+*Sampling without replacement is just shuffling. Since we sampled within treatments, the bootstrap samples would always match the observed sample. So there would be no variation in the bootstrap distribution of the test statistic.*
