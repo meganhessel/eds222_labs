@@ -1,0 +1,92 @@
+---
+title: "Color_drinking_water"
+format: html
+editor: visual
+---
+
+## Color of Drinking Water 
+
+```{r}
+library(ggplot2)
+library(tidyverse)
+```
+
+y \~ Normal (mu, sd)
+
+mu = B0 + B1 \* x
+
+```{r}
+# Betas and sigma
+beta0 <- 5
+beta1 <- -2
+sigma <- 1.5
+
+# Predictor (randomly chosen)
+x <- rnorm(15, 0, 2)
+  
+# Response
+mu <- beta0 + beta1 * x
+y <- rnorm(15, mu, sigma)
+
+mu 
+
+# Visualize
+ggplot(tibble(x, y), aes(x, y)) +
+  geom_point()
+
+```
+
+y \~ Binomal (1, p)
+
+```{r}
+p <- 0.2
+violation <- rbinom(100, 1, p)
+
+ggplot(tibble(violation = violation == 1), aes(violation)) +
+  geom_bar()
+```
+
+violation \~ Binomal (1,p)
+
+p = B0 + B1 \* (PctHisp)
+
+```{r}
+# Betas
+beta0 <- 0.1
+beta1 <- 0.02
+
+# Predictor
+pcthisp <- runif(15, 0, 100)
+
+# Response
+p <- beta0 + beta1 * pcthisp
+violation <- rbinom(15, size = 1, p = p)
+
+print(p)
+
+print(violation)
+```
+
+**Look at the simulated outcome, `violation`. What’s wrong with it?**
+
+-   lots of NAs
+
+**Look at the parameter `p`. What’s wrong with it?**
+
+-   p goes over 1.00 = 100% ?
+
+**In one sentence, what’s the challenge here for regression with binary outcomes?**
+
+-   Probably need to be turned into a 0-1 scale
+
+-   I was doing some reading of regression wth binary outcomes and a paper suggested:
+
+    -   To fit model: use glm (instead of lm) with family = "binomal" specified
+
+    -   Pr(binomal cati = 1) = logit(PIi) = PIi = B0 + (B1 \* x) + (B2 \* DV) + (B3 \* x \* DV)
+
+    \<<https://thechangelab.stanford.edu/tutorials/measurement-of-change/regression-with-continuous-count-and-binary-outcomes/>\>
+
+![](images/clipboard-837503432.png)
+
+![](images/clipboard-3669291695.png){width="509" height="86"}
