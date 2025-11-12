@@ -4,7 +4,7 @@ format: html
 editor: visual
 ---
 
-## Color of Drinking Water 
+## Color of Drinking Water
 
 ```{r}
 library(ggplot2)
@@ -90,3 +90,56 @@ print(violation)
 ![](images/clipboard-837503432.png)
 
 ![](images/clipboard-3669291695.png){width="509" height="86"}
+
+
+
+```{r}
+p <- seq(0.001, 0.999, length.out = 1e4)
+logit_p <- log(p/ (1-p))
+ggplot(tibble(p, logit_p), 
+       aes(p, logit_p)) + 
+  geom_line()
+
+```
+
+```{r}
+x <- seq(0, 100, length.out = 1e4)
+
+beta0 <- -5
+beta1 <- 0.1 
+
+logit_p <- beta0 + beta1 * x
+
+# Plot logit and x 
+ggplot(tibble(x, logit_p), 
+       aes(x, logit_p)) + 
+  geom_line()
+
+```
+
+
+```{r}
+# logit inverse 
+p <- exp(logit_p) / (1 + exp(logit_p))
+
+# Now can plot x and p 
+ggplot(tibble(x, p), 
+       aes(x, p)) + 
+  geom_line()
+```
+
+```{r}
+PctHisp <- seq(0,100, length.out = 1e3)
+beta0 <- -20
+beta1 <- 0.5
+  
+logit_p <- beta0 + beta1 * PctHisp
+
+p <- exp(logit_p) / (1 + exp(logit_p))
+
+ggplot(tibble(PctHisp, p), 
+       aes(PctHisp, p)) + 
+  geom_line()
+```
+
+
