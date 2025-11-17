@@ -98,17 +98,17 @@ head(drinking_water)
 
 **Describe what you think each of the columns represents.**
 
-| Column              | Meaning                                       |
-|---------------------|-----------------------------------------------|
-| `pwsid`             | ID                                            |
-| `pwsname`           |                                               |
-| `pctpov`            | percent under the poverty line                |
-| `pcthisp`           | percent hispanic                              |
-| `health`            | Number of health violations                   |
-| `medianincomehouse` | Median income                                 |
-| `violation`         | had or did not have violations - TRUE v FALSE |
-| `pcthisp_bin`       |                                               |
-| `pctpov_bin`        |                                               |
+| Column              | Meaning                                              |
+|---------------------|------------------------------------------------------|
+| `pwsid`             | Public Water system ID                               |
+| `pwsname`           | Name                                                 |
+| `pctpov`            | percent under the poverty line                       |
+| `pcthisp`           | percent hispanic                                     |
+| `health`            | Number of health violations                          |
+| `medianincomehouse` | Median income                                        |
+| `violation`         | had or did not have violations - TRUE v FALSE        |
+| `pcthisp_bin`       | All similar percent hispanic values that are binned  |
+| `pctpov_bin`        |                                                      |
 
 $$
 \begin{align}
@@ -128,6 +128,24 @@ Figure 3: A scatter plot showing the correlation between *percent Hispanic* and 
 ```{r}
 #| label: fig-explore
 # Figure 1:  A scatter plot showing the proportion of districts with SDWA violations in each percent Hispanic bin.
+
+
+drinking_water %>% 
+  group_by(pcthisp) %>% 
+  mutate(prop_violation = mean(violation)) %>% 
+  ggplot(aes(pcthisp_bin, prop_violation)) + 
+  geom_point()
+
+
+drinking_water %>% 
+  group_by(pctpov) %>% 
+  mutate(prop_violation = mean(violation)) %>% 
+  ggplot(aes(pctpov_bin, prop_violation)) + 
+  geom_point()
+
+
+
+
 figure1 <- ggplot(drinking_water, 
        aes(x = pcthisp_bin, 
            y = health)) + 
@@ -137,6 +155,7 @@ figure1 <- ggplot(drinking_water,
        y = "Health Violations", 
        title = "Figure 1") + 
   theme_bw()
+figure1 
 
 
 # Figure 2: A scatter plot showing the proportion of districts with SDWA violations in each percent below-poverty bin.
@@ -149,6 +168,7 @@ figure2 <- ggplot(drinking_water,
        y = "Health Violations", 
        title = "Figure 2") + 
   theme_bw()
+figure2 
 
 
 # Figure 3 : A scatter plot showing the correlation between percent Hispanic and percent below-poverty at the district level.
@@ -161,6 +181,7 @@ figure3 <- ggplot(drinking_water,
        y = "% Below the Poverity Line", 
        title = "Figure 3") + 
   theme_bw()
+figure3
 
 (figure1 | figure2 | figure3)
 ```
@@ -182,7 +203,11 @@ $$
 
 ```{r}
 #| label: fit-model-class
+class_model <- glm(violation ~ pctpov, # formular reponse ~ predictor
+                   data = drinking_water, # data remains unchanged
+                   family = binomial(link = "logit")) # family and link 
 
+class_sum <- summary(class_model)
 
 ```
 
@@ -190,11 +215,29 @@ Just as we did with linear regression, you can inspect coefficient estimates, p-
 
 **What is the best estimate for the % Below Poverty coefficient?**
 
+```{r}
+coef(class_model)
+coef(class_model)["pctpov"]
+```
+
 **Is the coefficient significantly different than 0? Assume critical threshold of 0.05.**
+
+```{r}
+# Same thing: 
+class_sum$coefficients[2,4]
+class_sum$coefficients["pctpov",4]
+```
 
 **What is the 95% CI for the coefficient?**
 
+```{r}
+confint(class_model)
+confint(class_model)["pctpov", ] # Just the B1 row 
+```
+
 **Based on the sign, what is the relationship between class and SDWA violations?**
+
+Sign is positive, so a positive association between the two
 
 ## Make predictions
 
@@ -219,6 +262,15 @@ I use `expand_grid()` instead of `tibble()` when making the data frame of predic
 ```{r}
 #| label: predict-class-model
 
+# A grid of predictors to generate prediction for 
+pred_grid <- expand_grid(pctpov = 0:100) # expand_grid - like tibble
+
+
+# Gerneate our predictions (added a p value to our dataframe)
+class_mod_pred <- pred_grid %>% 
+  mutate(p = predict(object = class_model,  # Use this model 
+                          newdata = pred_grid,  # Use these values 
+                          type = "response")) # response = looking at p; link = logit of p 
 
 
 ```
@@ -226,7 +278,12 @@ I use `expand_grid()` instead of `tibble()` when making the data frame of predic
 ```{r}
 #| label: plot-class-best-estimate
 
-
+ggplot(class_mod_pred,
+       aes(x = pctpov, 
+           y = p)) + 
+  geom_line() + 
+  ylim(0,1)
+  
 
 ```
 
@@ -243,8 +300,30 @@ When constructing the 95% CI for $p$, one thing remains the same and one thing h
 ```{r}
 #| label: predict-class-model-ci
 
+# STANDARD ERROR for class model 
+class_model_se <- predict(object = class_model, 
+                          newdata = pred_grid, 
+                          type = "link", 
+                          se.fit = TRUE)
 
+# Go from link to response spaces ... logit(p) --> p
+linkinv <- family(class_model)$linkinv 
 
+linkinv(0)
+
+class_mod_pred <- pred_grid %>% 
+  mutate(
+    # get logit(p)
+    logit_p = class_model_se$fit,
+    # 95% CI in link space 
+    logit_p_se = class_model_se$se.fit, 
+    logit_p_lwr = qnorm(0.025, mean = logit_p, sd = logit_p_se),
+    logit_p_upr = qnorm(0.975, mean = logit_p, sd = logit_p_se), 
+    
+    p = linkinv(logit_p),
+    p_lwr = linkinv(logit_p_lwr), 
+    p_upr = linkinv(logit_p_upr)
+  )
 ```
 
 And here's the fit with the 95% CI presented as the familiar ribbon.
@@ -252,7 +331,12 @@ And here's the fit with the 95% CI presented as the familiar ribbon.
 ```{r}
 #| label: plot-class-ci
 
-
+ggplot(class_mod_pred, 
+       aes(x = pctpov, 
+           y = p)) + 
+  geom_ribbon(aes(ymin = p_lwr, ymax = p_upr),
+              alpha = 0.2) + 
+  geom_line()
 
 ```
 
@@ -280,8 +364,105 @@ Switzer and Teodoro demonstrated that the *interaction* between race and class i
 ```{r}
 #| label: your-turn
 
+# Create new fit model
+
+inter_model <- glm(violation ~ pctpov * pcthisp, # formular reponse ~ predictor
+                   data = drinking_water, # data remains unchanged
+                   family = binomial(link = "logit")) # family and link 
 
 
+inter_sum <- summary(inter_model)
+
+# Pull Coeffients out 
+coef(inter_model)["pctpov"]
+coef(inter_model)["pcthisp"]
+
+# P values 
+inter_sum$coefficients["pctpov", 4]
+inter_sum$coefficients["pcthisp", 4]
+
+# CIs 
+confint(inter_model)["pctpov", ]
+confint(inter_model)["pcthisp", ]
+```
+
+Make Predictions
+
+```{r}
+
+# A grid of predictors to generate prediction for 
+inter_grid <- expand_grid(pctpov = 0:100, 
+                          pcthisp = 0:100) # expand_grid - like tibble
+
+
+# Gerneate our predictions (added a p value to our dataframe)
+inter_mod_pred <- inter_grid %>% 
+  mutate(p = predict(object = inter_model,  # Use this model 
+                          newdata = inter_grid,  # Use these values 
+                          type = "response")) # response = looking at p; link = logit of p 
+
+
+# Plot ? 
+# p with pct pov 
+ggplot(inter_mod_pred,
+       aes(x = pctpov, 
+           y = p)) + 
+  geom_line() + 
+  ylim(0,1)
+
+# p with pct hispanic 
+ggplot(inter_mod_pred,
+       aes(x = pcthisp, 
+           y = p)) + 
+  geom_line() + 
+  ylim(0,1)
+
+```
+
+```{r}
+
+# STANDARD ERROR for class model 
+inter_model_se <- predict(object = inter_model, 
+                          newdata = inter_grid, 
+                          type = "link", 
+                          se.fit = TRUE)
+
+# Go from link to response spaces ... logit(p) --> p
+linkinv <- family(inter_model)$linkinv 
+
+linkinv(0)
+
+# Creating a prediction model with logit(p), p, nd upper + lower CIs for logit and p 
+inter_mod_pred <- inter_grid %>% 
+  mutate(
+    # get logit(p)
+    logit_p = inter_model_se$fit,
+    # 95% CI in link space 
+    logit_p_se = inter_model_se$se.fit, 
+    logit_p_lwr = qnorm(0.025, mean = logit_p, sd = logit_p_se),
+    logit_p_upr = qnorm(0.975, mean = logit_p, sd = logit_p_se), 
+    
+    p = linkinv(logit_p),
+    p_lwr = linkinv(logit_p_lwr), 
+    p_upr = linkinv(logit_p_upr)
+  )
+
+
+# plot! 
+
+# Filter your predictions to a few levels of pctpov (e.g., 0, 25, 50, and 75).
+# pcthisp on the x-axis and probability of SDWA violations on the y-axis
+# pctpov using color and fill.
+
+inter_mod_pred %>% 
+  filter()
+
+ggplot(inter_mod_pred, 
+       aes(x = pcthisp, 
+           y = p)) + 
+  geom_ribbon(aes(ymin = p_lwr, ymax = p_upr),
+              alpha = 0.2) + 
+  geom_line(aes(color = pctpov))
 ```
 
 The coefficient for an interaction term in a logistic regression model is very difficult to interpret on its own! But that value has important consequences for the lives of millions of people. Predictions are usually more straightforward to interpret than coefficients. Use your figure and the outputs of `summary()` and `confint()` to reflect on the following prompt. Reply to the corresponding thread on Slack with your reflection to get 1 token.
