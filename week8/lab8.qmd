@@ -1,0 +1,297 @@
+---
+title: "Lab 8"
+subtitle: "California Wildfire Occurrence"
+toc: true
+editor: visual
+format:
+  html:
+    other-links:
+      - text: Download Source
+        href: lab8.qmd
+      - text: Wildfire Data
+        href: data/wildfires.zip
+editor_options: 
+  chunk_output_type: console
+bibliography: references.bib
+---
+
+## Learning objectives
+
+In today's lab you will...
+
+1.  Fit a **Poisson regression** model to count outcomes
+2.  **Visualize** predictions
+3.  **Compare** properly and improperly specified models
+
+Complete sections **Poisson model notation and R code** and **Read and explore the data** before lab.
+
+```{r}
+#| label: setup
+#| message: false
+#| warning: false
+
+library(tidyverse)
+library(terra)
+#library(tidyterra)
+library(sf)
+library(tmap)
+theme_set(theme_classic(12))
+set.seed(123)
+
+```
+
+## Poisson model notation and R code
+
+In statistical notation, Poisson models take the form:
+
+$$
+\begin{align}
+\text{CountOutcome} &\sim Poisson(\lambda) \\
+log(\lambda) &= \beta_0 + \beta_1 \text{Predictor}
+\end{align}
+$$
+
+In R, you can fit a poisson model like this:
+
+``` r
+poisson_model <- glm(count_outcome ~ predictor,
+                     data = my_data,
+                     family = poisson(link = "log"))
+```
+
+**Compare Poisson and logistic regression. Which of the following change between them?**
+
+-   **Response family: Poisson**
+
+-   **Link function: log()**
+
+-   **Response: COUNT outcome**
+
+-   **Predictor:**
+
+## Read and explore the data
+
+**Download and unzip wildfire.zip. Read the spatial and tabular data.** This includes:
+
+-   A wildfire shapefile
+
+-   A vapor pressure deficit (VPD) raster
+
+-   A table of annual vapor pressure deficit and wildfire data
+
+```{r}
+#| label: read-data
+
+shapefile <- read_sf(here::here('week8', 'wildfires', 'wildfires.shp'))
+vpd_raster <- rast(here::here('week8', 'wildfires', 'vpd.tiff'))
+wildfires <- read_csv(here::here('week8', 'wildfires', 'wildfires.csv'))
+ca_boundary <- read_sf(here::here('week8', 'wildfires', 'ca_state_boundary', 'ca_state_boundary.shp'))
+
+```
+
+**Recreate the three figures below.** Yours don't have to be exact replicates, but they should communicate the same messages.
+
+Figure 1: A scatter plot showing the relationship between vapor pressure deficit and wildfire occurence.
+
+![](images/vpd_fires.png){width="525"}
+
+Figure 2: Maps of summer VPD in 1980, 2000, and 2020.
+
+![](images/vpd_maps.png){width="699"}
+
+Figure 3: Maps of wildfires in 1980, 2000, and 2020.
+
+![](images/fire_maps.png){width="700"}
+
+
+### Figure 1 
+A scatter plot showing the relationship between vapor pressure deficit and wildfire occurence.
+```{r}
+#| label: fig-explore
+
+colorpalette <- c("#8B516C", "#D19E4C", "#F8C510","#C14B23")
+  
+
+# Figure 1 
+ggplot(wildfires, aes(x = mean_vpd_kpa, 
+                      y = n_fires, 
+                      color = fire_year)) + 
+  geom_point() +
+  scale_colour_gradient2(name = waiver(), 
+                         low = "#8B516C", 
+                         mid = "#F8C510", 
+                         high = "#C14B23", 
+                         midpoint = median(wildfires$fire_year)) + 
+  #scale_color_manual(values = c("#8B516C", "#D19E4C", "#F8C510","#C14B23")) +
+  #scale_fill_stepsn(colors = c("#8B516C", "#D19E4C", "#F8C510","#C14B23"),
+                   # breaks = c('1990', '2000', '2010', '2020')) +
+  labs(title = "Figure 1", 
+       subtitle = "A scatter plot showing the relationship between vapor pressure deficit and wildfire occurence",
+       x = "Mean VPD (kPa)", 
+       y = "Fires >10k acres (n)", 
+       color = "Year")
+
+
+
+```
+
+
+### Figure 2: 
+Maps of summer VPD in 1980, 2000, and 2020.
+```{r}
+# Filter for years in raster 
+vpd_1980 <- vpd_raster$`1980`
+vpd_2000 <- vpd_raster$`2000`
+vpd_2020 <- vpd_raster$`2020`
+
+# individual 
+#ggplot(vpd_1980) + 
+  #geom_tile(aes(fill=factor(value),alpha=0.8)) +
+  #scale_fill_gradient() +
+  #geom_polygon()+
+  #coord_equal()
+
+
+
+# Create the maps 
+vpd_1980_map <- tm_shape(vpd_1980) + 
+  tm_raster(col.scale = tm_scale_continuous(values = "viridis",
+                                            limits = c(0,7)), 
+            col.legend = tm_legend(orientation = "landscape", 
+                                   show = FALSE
+                                   )) 
+
+
+vpd_2000_map <- tm_shape(vpd_2000) + 
+  tm_raster(col.scale = tm_scale_continuous(values = "viridis", 
+                                            limits = c(0,7)), 
+            col.legend = tm_legend(orientation = "landscape" 
+                                   #position = tm_pos_in(c('center'))
+                                   ))
+
+            
+vpd_2020_map <- tm_shape(vpd_2020) + 
+  tm_raster(col.scale = tm_scale_continuous(values = "viridis", 
+                                            limits = c(0,7)), 
+    col.legend = tm_legend(orientation = "landscape", 
+                           show = FALSE
+                           )
+    )
+
+
+# Disable automatic component scaling
+tmap_options(component.autoscale = FALSE)
+
+
+# put maps together 
+tmap_arrange(vpd_1980_map, vpd_2000_map, vpd_2020_map)
+
+#ggplot(vpd_1980_map) %>% 
+  #geom_spatraster()
+
+
+```
+
+### Figure 3
+Maps of wildfires in 1980, 2000, and 2020.
+```{r}
+# Filter for years 
+fires_1980 <- shapefile %>% 
+  filter(fire_year == '1980')
+fires_2000 <- shapefile %>% 
+  filter(fire_year == '2000')
+
+fires_2020 <- shapefile %>% 
+  filter(fire_year == '2020')
+
+  
+# Maps 
+fires_1980_map <- tm_shape(ca_boundary) + 
+  tm_polygons(fill = "cyan", 
+              fill_alpha = 0.6) + 
+  tm_shape(fires_1980) + 
+  tm_polygons(fill = 'red') + 
+  tm_title(text = "1980 Fires") + 
+  tm_grid(col = "grey50", 
+          n.x = 4, 
+          n.y = 4)
+
+fires_2000_map <- tm_shape(ca_boundary) + 
+  tm_polygons(fill = "cyan", 
+              fill_alpha = 0.6) + 
+  tm_shape(fires_2000) + 
+  tm_polygons(fill = 'red') + 
+  tm_title(text = "2000 Fires") + 
+  tm_grid(col = "grey50", 
+          n.x = 4, 
+          n.y = 4) 
+
+#fires_2000_map <- tm_shape(ca_boundary) + 
+  #tm_polygons(fill = "cyan", 
+              #fill_alpha = 0.6) + 
+  #tm_shape(fires_2020) + 
+  #tm_polygons(fill = 'red') + 
+  #tm_title(text = "2000 Fires") + 
+  #tm_grid(col = "grey50")
+
+
+tmap_arrange(fires_1980_map, fires_2000_map) #fires_2020_map)
+
+```
+
+
+## Fit model
+
+Our question is:
+
+*How is the occurrence of wildfires in California associated with the previous summer's vapor pressure deficit?*
+
+For more details about vapor pressure deficit and its relationship with fires, see @abatzoglou2016 and @seager2015.
+
+**Fit a poisson model to see how `n_fires` responds to `mean_vpd_kpa`**.
+
+```{r}
+#| label: fit-model
+
+
+
+```
+
+## Make predictions
+
+As with logistic regression, the coefficients of a Poisson regression model are not terribly intuitive. Once again, we will interpret our model by visualizing predictions. Refer to lab 7 for details about how to generate predictions and CIs for a generalized linear model.
+
+**Generate predictions and a CI for the number of fires in the range of VPD values in the dataset.**
+
+```{r}
+#| label: predict-fires
+
+
+
+```
+
+**Plot the raw data with the predictions. Your figure should look something like the figure below.**
+
+![](images/fire_preds.png){width="525"}
+
+```{r}
+#| label: plot-predictions
+
+
+
+```
+
+## **Compare** properly and improperly specified models
+
+Seeing a scatter plot of mean VPD and the number of fires in a year, an uncritical statistics student may think to fit a linear model. But the fact that the response is a *count* should suggest another approach is necessary. Contrast the model summary and predictions from your Poisson model against a linear model.
+
+1.  Create a new model using `lm()`.
+2.  Compare the summaries of your Poisson model and the linear model.\
+    **Is the coefficient for `mean_vpd_kpa` significant in both models? What does that mean for your inferences?**
+3.  Use predictions and components of the linear model to answer the following questions.\
+    **What is the estimate for** $\sigma$ **in your linear model?\
+    What does the linear model predict** $\mu$ **is** **when the VPD is at the minimum value in the dataset?\
+    What is the 95% interval for the predicted number of fires for that mean and standard deviation (hint: use `qnorm()`)?\
+    Why doesn't that interval make any sense?**
+
+**Based on your answers to the questions above, why is using a properly specified model important?**

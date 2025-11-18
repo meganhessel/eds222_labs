@@ -91,24 +91,24 @@ logistic_model <- glm(binary_outcome ~ predictor,
 ```{r}
 #| label: read-data
 
-drinking_water <- read_csv(here::here('week7', 'drinking_water.csv'))
+drinking_water <- read_csv(here::here('week7', 'data', 'drinking_water.csv'))
 
 head(drinking_water)
 ```
 
 **Describe what you think each of the columns represents.**
 
-| Column              | Meaning                                              |
-|---------------------|------------------------------------------------------|
-| `pwsid`             | Public Water system ID                               |
-| `pwsname`           | Name                                                 |
-| `pctpov`            | percent under the poverty line                       |
-| `pcthisp`           | percent hispanic                                     |
-| `health`            | Number of health violations                          |
-| `medianincomehouse` | Median income                                        |
-| `violation`         | had or did not have violations - TRUE v FALSE        |
-| `pcthisp_bin`       | All similar percent hispanic values that are binned  |
-| `pctpov_bin`        |                                                      |
+| Column              | Meaning                                             |
+|---------------------|-----------------------------------------------------|
+| `pwsid`             | Public Water system ID                              |
+| `pwsname`           | Name                                                |
+| `pctpov`            | percent under the poverty line                      |
+| `pcthisp`           | percent hispanic                                    |
+| `health`            | Number of health violations                         |
+| `medianincomehouse` | Median income                                       |
+| `violation`         | had or did not have violations - TRUE v FALSE       |
+| `pcthisp_bin`       | All similar percent hispanic values that are binned |
+| `pctpov_bin`        |                                                     |
 
 $$
 \begin{align}

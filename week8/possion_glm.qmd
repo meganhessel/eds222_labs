@@ -1,0 +1,143 @@
+---
+title: "possion_glm"
+format: html
+---
+
+## LAST CLASS 
+```{r}
+# Create  model 
+class_model <- glm(violation ~ pctpov, # formular reponse ~ predictor
+                   data = drinking_water, # data remains unchanged
+                   family = binomial(link = "logit")) # family and link 
+
+# Model Summary 
+class_sum <- summary(class_model)
+
+# Coeffients
+coef(class_model)
+coef(class_model)["pctpov"]
+
+
+# A grid of predictors to generate prediction for 
+pred_grid <- expand_grid(pctpov = 0:100) # expand_grid - like tibble
+
+
+# Gerneate our predictions (added a p value to our dataframe)
+class_mod_pred <- pred_grid %>% 
+  mutate(p = predict(object = class_model,  # Use this model 
+                          newdata = pred_grid,  # Use these values 
+                          type = "response")) # response = looking at p; link = logit of p 
+ggplot(class_mod_pred,
+       aes(x = pctpov, 
+           y = p)) + 
+  geom_line() + 
+  ylim(0,1)
+
+
+
+# STANDARD ERROR for class model 
+class_model_se <- predict(object = class_model, 
+                          newdata = pred_grid, 
+                          type = "link", 
+                          se.fit = TRUE)
+
+# Go from link to response spaces ... logit(p) --> p
+linkinv <- family(class_model)$linkinv 
+
+linkinv(0)
+
+class_mod_pred <- pred_grid %>% 
+  mutate(
+    # get logit(p)
+    logit_p = class_model_se$fit,
+    # 95% CI in link space 
+    logit_p_se = class_model_se$se.fit, 
+    logit_p_lwr = qnorm(0.025, mean = logit_p, sd = logit_p_se),
+    logit_p_upr = qnorm(0.975, mean = logit_p, sd = logit_p_se), 
+    
+    p = linkinv(logit_p),
+    p_lwr = linkinv(logit_p_lwr), 
+    p_upr = linkinv(logit_p_upr)
+  )
+
+
+ggplot(class_mod_pred, 
+       aes(x = pctpov, 
+           y = p)) + 
+  geom_ribbon(aes(ymin = p_lwr, ymax = p_upr),
+              alpha = 0.2) + 
+  geom_line()
+
+```
+
+## Pre class Prep e
+
+```{r}
+library(patchwork)
+# Create a PMF 
+
+# x values 
+x <- seq(1, 10)
+
+# parameters 
+lambda1 <- 0.5
+lambda2 <- 2
+lambda3 <- 5
+
+# calculate mass / density 
+df <- expand_grid(x) %>% 
+  mutate(lambda_0.5 = dpois(x, lambda = lambda1)) %>% 
+  mutate(lambda_2 = dpois(x, lambda = lambda2)) %>% 
+  mutate(lambda_5 = dpois(x, lambda = lambda3))
+
+
+
+plot1 <- ggplot(df, 
+       aes(x = x, 
+           y = lambda_0.5)) + 
+  geom_segment(aes(xend = x, yend = 0)) +
+  geom_point(size = 2) + 
+  theme_gray() + 
+  labs(y = "lambda 0.5")
+
+plot2 <- ggplot(df, 
+       aes(x = x, 
+           y = lambda_2)) + 
+  geom_segment(aes(xend = x, yend = 0)) +
+  geom_point(size = 2) + 
+  theme_grey() + 
+  labs(y = "lambda 2")
+
+plot3 <- ggplot(df, 
+       aes(x = x, 
+           y = lambda_5)) + 
+  geom_segment(aes(xend = x, yend = 0)) +
+  geom_point(size = 2) + 
+  theme_grey() + 
+  labs(y = "lambda 5")
+
+
+(plot1 / plot2 / plot3 )
+
+
+
+
+# Making the plots look more like Max - facetwrap style 
+df_pivoted <- df %>% 
+  pivot_longer(cols = lambda_0.5:lambda_5, 
+               names_to = 'mass', 
+               values_to = 'values')
+
+
+ggplot(df_pivoted, 
+       aes(x = x, 
+           y = values)) + 
+  geom_segment(aes(xend = x, yend = 0)) +
+  geom_point(size = 2) + 
+  facet_wrap(~mass, 
+             ncol = 1, 
+             strip.position = 'right') + 
+  theme_bw() + 
+  labs(y = "mass")
+
+```
