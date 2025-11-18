@@ -253,6 +253,15 @@ For more details about vapor pressure deficit and its relationship with fires, s
 ```{r}
 #| label: fit-model
 
+# Create fit model 
+fire_model <- glm(n_fires ~ mean_vpd_kpa, 
+                  family = poisson(link = 'log'), 
+                  data = wildfires)
+
+fire_sum <- summary(fire_model)
+
+# Coeffients 
+coef(fire_model)
 
 
 ```
@@ -266,7 +275,62 @@ As with logistic regression, the coefficients of a Poisson regression model are 
 ```{r}
 #| label: predict-fires
 
+# Create an expand grid with a list of x values 
+pred_grid <- expand_grid(mean_vpd_kpa = seq(min(wildfires$mean_vpd_kpa), max(wildfires$mean_vpd_kpa), by = 0.01))
 
+# Create Predictions using the expand grid (in lambda space)
+mod_pred <- pred_grid %>% 
+  mutate(predictions = predict(object = fire_model, # Use the model
+                                newdata = pred_grid, 
+                                type = 'response')) # lambda !! 
+
+# Plot it 
+ggplot() + 
+  geom_line(data = mod_pred, 
+            aes(x = mean_vpd_kpa,
+                y = predictions)) + 
+  geom_point(data = wildfires, 
+             aes(x = mean_vpd_kpa, 
+                 y = n_fires), 
+             color = "red")
+
+```
+
+```{r}
+
+# Find standard Error - in link space 
+mod_se <- predict(object = fire_model, 
+        newdata = mod_pred, 
+        type = "link", # log(lambda)
+        se.fit = TRUE)
+
+
+# Inverse function of model 
+linkinv <- family(fire_model)$linkinv 
+
+
+# Trying to do what we did last class 
+fancy_mod_pred <- pred_grid %>% 
+  mutate(
+    
+    # Get log(lambda) - in link space 
+    link_lambda = mod_se$fit,
+    
+    # 95% CI (in link space)
+    link_se = mod_se$se.fit, 
+    link_lwr = qnorm(0.025, mean = link_lambda, sd = link_se),
+    link_upr = qnorm(0.975, mean = link_lambda, sd = link_se), 
+    
+    # Lambda values (in lambda space)
+    lamda = linkinv(link_lambda),
+    ci_lwr = linkinv(link_lwr), 
+    ci_upr = linkinv(link_upr),
+    
+    # Jagged Range (in lambda space)
+    jagged_lwr = qpois(c(0.025), lambda = lamda),
+    jagged_upr = qpois(c(0.975), lambda = lamda)
+  
+    )
 
 ```
 
@@ -277,6 +341,25 @@ As with logistic regression, the coefficients of a Poisson regression model are 
 ```{r}
 #| label: plot-predictions
 
+# Plot CI 
+ggplot(fancy_mod_pred, 
+       aes(x = mean_vpd_kpa, 
+           y = lamda)) + 
+  geom_ribbon(aes(ymin = ci_lwr, ymax = ci_upr),
+              alpha = 0.2, 
+              fill = "blue4") + 
+  geom_line() + 
+  geom_ribbon(aes(ymin = jagged_lwr, ymax = jagged_upr),
+              alpha = 0.2, 
+              fill = "coral") + 
+  geom_point(data = wildfires, 
+             aes(x = mean_vpd_kpa, 
+                 y = n_fires), 
+             color = "grey60", 
+             alpha = 0.6) + 
+  labs(x = "Vapor Pressure Deficit", 
+       y = "Number of Fires", 
+       title = "Fire Counts via VPD")
 
 
 ```
